@@ -224,6 +224,62 @@ def extract_products(html: str, all_gf_selects: bool = False) -> List[Dict]:
         })
     return rows
 
+def extract_product_info(product_name: str) -> Dict[str, Optional[float]]:
+    """Extract THC%, CBD%, and weight from product name"""
+    # Extract THC percentage
+    thc_match = re.search(r'(\d+(?:\.\d+)?)%\s*THC', product_name, re.IGNORECASE)
+    thc_percent = float(thc_match.group(1)) if thc_match else None
+    
+    # Extract CBD percentage
+    cbd_match = re.search(r'(\d+(?:\.\d+)?)%\s*CBD', product_name, re.IGNORECASE)
+    cbd_percent = float(cbd_match.group(1)) if cbd_match else None
+    
+    # Extract weight (look for patterns like "10g", "(10g)", etc.)
+    weight_match = re.search(r'\(?(\d+(?:\.\d+)?)\s*g\)?', product_name, re.IGNORECASE)
+    weight_grams = float(weight_match.group(1)) if weight_match else None
+    
+    return {
+        'thc_percent': thc_percent,
+        'cbd_percent': cbd_percent,
+        'weight_grams': weight_grams
+    }
+
+def calculate_efficiency_metrics(rows: List[Dict]) -> List[Dict]:
+    """Add efficiency metrics to product data"""
+    enhanced_rows = []
+    
+    for row in rows:
+        enhanced_row = row.copy()
+        product_info = extract_product_info(row['product'])
+        
+        # Add extracted info
+        enhanced_row.update(product_info)
+        
+        # Calculate efficiency metrics
+        price = row['price']
+        thc_percent = product_info['thc_percent']
+        weight_grams = product_info['weight_grams']
+        
+        # £/g calculation
+        if price is not None and weight_grams is not None and weight_grams > 0:
+            enhanced_row['price_per_gram'] = price / weight_grams
+        else:
+            enhanced_row['price_per_gram'] = None
+            
+        # £/mg THC calculation (more complex)
+        if (price is not None and thc_percent is not None and 
+            weight_grams is not None and thc_percent > 0 and weight_grams > 0):
+            # Convert weight to mg and calculate THC content
+            weight_mg = weight_grams * 1000
+            thc_content_mg = weight_mg * (thc_percent / 100)
+            enhanced_row['price_per_mg_thc'] = price / thc_content_mg
+        else:
+            enhanced_row['price_per_mg_thc'] = None
+            
+        enhanced_rows.append(enhanced_row)
+    
+    return enhanced_rows
+
 def filter_and_sort_products(rows: List[Dict], flower_only: bool = True, sort_by_price: bool = True) -> List[Dict]:
     """Filter and sort products based on criteria"""
     filtered_rows = rows
@@ -231,6 +287,9 @@ def filter_and_sort_products(rows: List[Dict], flower_only: bool = True, sort_by
     # Filter for flower products only
     if flower_only:
         filtered_rows = [r for r in filtered_rows if 'flower' in r['product'].lower()]
+    
+    # Add efficiency metrics
+    filtered_rows = calculate_efficiency_metrics(filtered_rows)
     
     # Sort by price (lowest to highest), with items without prices at the end
     if sort_by_price:
@@ -274,10 +333,12 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
     )
     
     table.add_column("Rank", style="bold cyan", justify="center", min_width=4)
-    table.add_column("Product", style="cyan", no_wrap=False, min_width=50)
-    table.add_column("Price", style="bold green", justify="right", min_width=8)
-    table.add_column("THC%", style="yellow", justify="center", min_width=6)
-    table.add_column("Size", style="blue", justify="center", min_width=6)
+    table.add_column("Product", style="cyan", no_wrap=False, min_width=40)
+    table.add_column("Price", style="bold green", justify="right", min_width=7)
+    table.add_column("THC%", style="yellow", justify="center", min_width=5)
+    table.add_column("Size", style="blue", justify="center", min_width=5)
+    table.add_column("£/g", style="bold magenta", justify="right", min_width=6)
+    table.add_column("£/mg THC", style="bold red", justify="right", min_width=8)
     
     count = 0
     for i, r in enumerate(rows, 1):
@@ -285,25 +346,28 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
             break
             
         # Format price
-        if r["price"] is None:
-            price_str = "N/A"
-        else:
-            price_str = f"£{r['price']:.2f}"
+        price_str = f"£{r['price']:.2f}" if r['price'] is not None else "N/A"
             
-        # Extract THC percentage and size from product name
-        product_name = r["product"]
-        thc_match = re.search(r'(\d+)%\s*THC', product_name)
-        thc_str = thc_match.group(1) + "%" if thc_match else "N/A"
+        # Extract info from enhanced data
+        thc_str = f"{r.get('thc_percent', 0):.0f}%" if r.get('thc_percent') else "N/A"
         
-        size_match = re.search(r'\((\d+g)\)', product_name)
+        size_match = re.search(r'\((\d+g)\)', r['product'])
         size_str = size_match.group(1) if size_match else "N/A"
         
+        # Format efficiency metrics
+        price_per_gram = r.get('price_per_gram')
+        price_per_g_str = f"£{price_per_gram:.2f}" if price_per_gram is not None else "N/A"
+        
+        price_per_mg_thc = r.get('price_per_mg_thc')
+        price_per_mg_thc_str = f"£{price_per_mg_thc:.4f}" if price_per_mg_thc is not None else "N/A"
+        
         # Truncate very long product names for better display
-        display_name = product_name
-        if len(display_name) > 80:
-            display_name = display_name[:77] + "..."
+        display_name = r['product']
+        if len(display_name) > 60:
+            display_name = display_name[:57] + "..."
             
-        table.add_row(str(i), display_name, price_str, thc_str, size_str)
+        table.add_row(str(i), display_name, price_str, thc_str, size_str, 
+                     price_per_g_str, price_per_mg_thc_str)
         count += 1
     
     console.print()
@@ -312,6 +376,21 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
     
     if limit and len(rows) > limit:
         console.print(f"[dim]Showing first {limit} items. Use --limit 0 or remove --limit to show all.[/dim]")
+    
+    # Show efficiency leaders
+    console.print("\n[bold yellow]💰 Best Value Analysis:[/bold yellow]")
+    
+    # Best £/g
+    valid_per_gram = [r for r in rows if r.get('price_per_gram') is not None]
+    if valid_per_gram:
+        cheapest_per_gram = min(valid_per_gram, key=lambda x: x['price_per_gram'])
+        console.print(f"[green]Cheapest per gram:[/green] {cheapest_per_gram['product'][:50]}... - £{cheapest_per_gram['price_per_gram']:.2f}/g")
+    
+    # Best £/mg THC
+    valid_per_thc = [r for r in rows if r.get('price_per_mg_thc') is not None]
+    if valid_per_thc:
+        cheapest_per_thc = min(valid_per_thc, key=lambda x: x['price_per_mg_thc'])
+        console.print(f"[green]Best THC value:[/green] {cheapest_per_thc['product'][:50]}... - £{cheapest_per_thc['price_per_mg_thc']:.4f}/mg THC")
 
 def show_gui_table(rows: List[Dict]):
     """Display products in a GUI table using tkinter"""
@@ -350,7 +429,7 @@ def show_gui_table(rows: List[Dict]):
     tree_frame.rowconfigure(0, weight=1)
     
     # Define columns
-    columns = ('rank', 'product', 'price', 'thc', 'cbd', 'size', 'brand')
+    columns = ('rank', 'product', 'price', 'thc', 'cbd', 'size', 'price_per_g', 'price_per_mg_thc', 'brand')
     tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=25)
     
     # Define headings
@@ -360,16 +439,20 @@ def show_gui_table(rows: List[Dict]):
     tree.heading('thc', text='THC%', anchor=tk.CENTER)
     tree.heading('cbd', text='CBD%', anchor=tk.CENTER)
     tree.heading('size', text='Size', anchor=tk.CENTER)
+    tree.heading('price_per_g', text='£/g', anchor=tk.E)
+    tree.heading('price_per_mg_thc', text='£/mg THC', anchor=tk.E)
     tree.heading('brand', text='Brand', anchor=tk.W)
     
     # Configure column widths
-    tree.column('rank', width=40, minwidth=40, anchor=tk.CENTER)
-    tree.column('product', width=400, minwidth=300, anchor=tk.W)
-    tree.column('price', width=80, minwidth=80, anchor=tk.E)
-    tree.column('thc', width=60, minwidth=60, anchor=tk.CENTER)
-    tree.column('cbd', width=60, minwidth=60, anchor=tk.CENTER)
-    tree.column('size', width=60, minwidth=60, anchor=tk.CENTER)
-    tree.column('brand', width=150, minwidth=100, anchor=tk.W)
+    tree.column('rank', width=35, minwidth=35, anchor=tk.CENTER)
+    tree.column('product', width=300, minwidth=250, anchor=tk.W)
+    tree.column('price', width=70, minwidth=70, anchor=tk.E)
+    tree.column('thc', width=50, minwidth=50, anchor=tk.CENTER)
+    tree.column('cbd', width=50, minwidth=50, anchor=tk.CENTER)
+    tree.column('size', width=50, minwidth=50, anchor=tk.CENTER)
+    tree.column('price_per_g', width=60, minwidth=60, anchor=tk.E)
+    tree.column('price_per_mg_thc', width=80, minwidth=80, anchor=tk.E)
+    tree.column('brand', width=120, minwidth=100, anchor=tk.W)
     
     # Add scrollbars
     v_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
@@ -385,39 +468,44 @@ def show_gui_table(rows: List[Dict]):
     for i, product in enumerate(rows, 1):
         product_name = product['product']
         
-        # Extract information from product name
-        thc_match = re.search(r'(\d+)%\s*THC', product_name)
-        thc_str = thc_match.group(1) + "%" if thc_match else "N/A"
+        # Get pre-calculated values
+        thc_percent = product.get('thc_percent')
+        cbd_percent = product.get('cbd_percent')
+        weight_grams = product.get('weight_grams')
+        price_per_gram = product.get('price_per_gram')
+        price_per_mg_thc = product.get('price_per_mg_thc')
         
-        cbd_match = re.search(r'(\d+)%\s*CBD', product_name)
-        cbd_str = cbd_match.group(1) + "%" if cbd_match else "<1%"
-        
-        size_match = re.search(r'\((\d+g)\)', product_name)
-        size_str = size_match.group(1) if size_match else "N/A"
+        # Format values
+        thc_str = f"{thc_percent:.1f}%" if thc_percent is not None else "N/A"
+        cbd_str = f"{cbd_percent:.1f}%" if cbd_percent is not None else "<1%"
+        size_str = f"{weight_grams:.0f}g" if weight_grams is not None else "N/A"
         
         # Extract brand (first word/words before THC percentage)
         brand_match = re.search(r'^([^0-9]+?)(?=\s+\d+%)', product_name)
         brand_str = brand_match.group(1).strip() if brand_match else "Unknown"
         
         price_str = f"{product['price']:.2f}" if product['price'] is not None else "N/A"
+        price_per_g_str = f"{price_per_gram:.2f}" if price_per_gram is not None else "N/A"
+        price_per_mg_thc_str = f"{price_per_mg_thc:.4f}" if price_per_mg_thc is not None else "N/A"
         
         # Insert row with alternating colors
         tag = 'evenrow' if i % 2 == 0 else 'oddrow'
         tree.insert('', tk.END, values=(
-            i, product_name, price_str, thc_str, cbd_str, size_str, brand_str
+            i, product_name, price_str, thc_str, cbd_str, size_str, 
+            price_per_g_str, price_per_mg_thc_str, brand_str
         ), tags=(tag,))
     
     # Configure row colors
     tree.tag_configure('oddrow', background='#f9f9f9')
     tree.tag_configure('evenrow', background='#ffffff')
     
-    # Add summary label
+    # Add summary label with efficiency metrics
     summary_frame = ttk.Frame(main_frame)
     summary_frame.grid(row=2, column=0, pady=(10, 0), sticky=tk.W)
     
     total_products = len(rows)
     price_range = ""
-    if rows and rows[0]['price'] is not None and rows[-1]['price'] is not None:
+    if rows and rows[0]['price'] is not None:
         lowest_price = rows[0]['price']
         highest_price = max(r['price'] for r in rows if r['price'] is not None)
         price_range = f" | Price range: £{lowest_price:.2f} - £{highest_price:.2f}"
@@ -429,9 +517,35 @@ def show_gui_table(rows: List[Dict]):
     )
     summary_label.pack(side=tk.LEFT)
     
+    # Add efficiency insights
+    insights_frame = ttk.Frame(main_frame)
+    insights_frame.grid(row=3, column=0, pady=(5, 0), sticky=tk.W)
+    
+    # Best value per gram
+    valid_per_gram = [r for r in rows if r.get('price_per_gram') is not None]
+    if valid_per_gram:
+        cheapest_per_gram = min(valid_per_gram, key=lambda x: x['price_per_gram'])
+        best_gram_label = ttk.Label(
+            insights_frame,
+            text=f"💰 Best £/g: {cheapest_per_gram['product'][:40]}... (£{cheapest_per_gram['price_per_gram']:.2f}/g)",
+            font=('Arial', 9)
+        )
+        best_gram_label.pack(anchor=tk.W)
+    
+    # Best value per mg THC
+    valid_per_thc = [r for r in rows if r.get('price_per_mg_thc') is not None]
+    if valid_per_thc:
+        cheapest_per_thc = min(valid_per_thc, key=lambda x: x['price_per_mg_thc'])
+        best_thc_label = ttk.Label(
+            insights_frame,
+            text=f"🌿 Best THC value: {cheapest_per_thc['product'][:40]}... (£{cheapest_per_thc['price_per_mg_thc']:.4f}/mg THC)",
+            font=('Arial', 9)
+        )
+        best_thc_label.pack(anchor=tk.W)
+    
     # Add close button
     button_frame = ttk.Frame(main_frame)
-    button_frame.grid(row=3, column=0, pady=(10, 0))
+    button_frame.grid(row=4, column=0, pady=(10, 0))
     
     close_button = ttk.Button(button_frame, text="Close", command=root.destroy)
     close_button.pack()
