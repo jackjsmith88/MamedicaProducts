@@ -260,13 +260,13 @@ def calculate_efficiency_metrics(rows: List[Dict]) -> List[Dict]:
         thc_percent = product_info['thc_percent']
         weight_grams = product_info['weight_grams']
         
-        # £/g calculation
+        # Â£/g calculation
         if price is not None and weight_grams is not None and weight_grams > 0:
             enhanced_row['price_per_gram'] = price / weight_grams
         else:
             enhanced_row['price_per_gram'] = None
             
-        # £/mg THC calculation (more complex)
+        # Â£/mg THC calculation (more complex)
         if (price is not None and thc_percent is not None and 
             weight_grams is not None and thc_percent > 0 and weight_grams > 0):
             # Convert weight to mg and calculate THC content
@@ -306,7 +306,7 @@ def print_table(rows: List[Dict], limit: Optional[int] = None):
     for r in rows:
         if limit is not None and count >= limit:
             break
-        price_str = "" if r["price"] is None else f"£{r['price']:.2f}"
+        price_str = "" if r["price"] is None else f"Â£{r['price']:.2f}"
         print(f"{r['product']:<95} {price_str:>10}")
         count += 1
     print("=" * 110)
@@ -323,7 +323,7 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
     
     # Create table
     table = Table(
-        title="🌿 Mamedica Flower Products (Lowest to Highest Price)",
+        title="ðŸŒ¿ Mamedica Flower Products (Lowest to Highest Price)",
         title_style="bold green",
         show_header=True,
         header_style="bold white on green",
@@ -337,8 +337,8 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
     table.add_column("Price", style="bold green", justify="right", min_width=7)
     table.add_column("THC%", style="yellow", justify="center", min_width=5)
     table.add_column("Size", style="blue", justify="center", min_width=5)
-    table.add_column("£/g", style="bold magenta", justify="right", min_width=6)
-    table.add_column("£/mg THC", style="bold red", justify="right", min_width=8)
+    table.add_column("Â£/g", style="bold magenta", justify="right", min_width=6)
+    table.add_column("Â£/mg THC", style="bold red", justify="right", min_width=8)
     
     count = 0
     for i, r in enumerate(rows, 1):
@@ -346,7 +346,7 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
             break
             
         # Format price
-        price_str = f"£{r['price']:.2f}" if r['price'] is not None else "N/A"
+        price_str = f"Â£{r['price']:.2f}" if r['price'] is not None else "N/A"
             
         # Extract info from enhanced data
         thc_str = f"{r.get('thc_percent', 0):.0f}%" if r.get('thc_percent') else "N/A"
@@ -356,10 +356,10 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
         
         # Format efficiency metrics
         price_per_gram = r.get('price_per_gram')
-        price_per_g_str = f"£{price_per_gram:.2f}" if price_per_gram is not None else "N/A"
+        price_per_g_str = f"Â£{price_per_gram:.2f}" if price_per_gram is not None else "N/A"
         
         price_per_mg_thc = r.get('price_per_mg_thc')
-        price_per_mg_thc_str = f"£{price_per_mg_thc:.4f}" if price_per_mg_thc is not None else "N/A"
+        price_per_mg_thc_str = f"Â£{price_per_mg_thc:.4f}" if price_per_mg_thc is not None else "N/A"
         
         # Truncate very long product names for better display
         display_name = r['product']
@@ -378,61 +378,202 @@ def print_rich_table(rows: List[Dict], limit: Optional[int] = None):
         console.print(f"[dim]Showing first {limit} items. Use --limit 0 or remove --limit to show all.[/dim]")
     
     # Show efficiency leaders
-    console.print("\n[bold yellow]💰 Best Value Analysis:[/bold yellow]")
+    console.print("\n[bold yellow]ðŸ’° Best Value Analysis:[/bold yellow]")
     
-    # Best £/g
+    # Best Â£/g
     valid_per_gram = [r for r in rows if r.get('price_per_gram') is not None]
     if valid_per_gram:
         cheapest_per_gram = min(valid_per_gram, key=lambda x: x['price_per_gram'])
-        console.print(f"[green]Cheapest per gram:[/green] {cheapest_per_gram['product'][:50]}... - £{cheapest_per_gram['price_per_gram']:.2f}/g")
+        console.print(f"[green]Cheapest per gram:[/green] {cheapest_per_gram['product'][:50]}... - Â£{cheapest_per_gram['price_per_gram']:.2f}/g")
     
-    # Best £/mg THC
+    # Best Â£/mg THC
     valid_per_thc = [r for r in rows if r.get('price_per_mg_thc') is not None]
     if valid_per_thc:
         cheapest_per_thc = min(valid_per_thc, key=lambda x: x['price_per_mg_thc'])
-        console.print(f"[green]Best THC value:[/green] {cheapest_per_thc['product'][:50]}... - £{cheapest_per_thc['price_per_mg_thc']:.4f}/mg THC")
+        console.print(f"[green]Best THC value:[/green] {cheapest_per_thc['product'][:50]}... - Â£{cheapest_per_thc['price_per_mg_thc']:.4f}/mg THC")
 
 def show_gui_table(rows: List[Dict]):
-    """Display products in a GUI table using tkinter"""
+    """Display products in a GUI table using tkinter with filters and shopping cart"""
     if not TKINTER_AVAILABLE:
         print("Tkinter not available. GUI display not supported.")
         return
         
     # Create main window
     root = tk.Tk()
-    root.title("🌿 Mamedica Flower Products - Price Comparison")
-    root.geometry("1200x700")
+    root.title("Mamedica Flower Products - Price Comparison & Shopping Cart")
+    root.geometry("1400x800")
     root.configure(bg='#f0f0f0')
     
-    # Create main frame
-    main_frame = ttk.Frame(root, padding="10")
-    main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+    # Variables for filters
+    price_min = tk.DoubleVar()
+    price_max = tk.DoubleVar()
+    price_per_g_min = tk.DoubleVar()
+    price_per_g_max = tk.DoubleVar()
+    thc_min = tk.DoubleVar()
+    thc_max = tk.DoubleVar()
     
-    # Configure grid weights
-    root.columnconfigure(0, weight=1)
-    root.rowconfigure(0, weight=1)
-    main_frame.columnconfigure(0, weight=1)
-    main_frame.rowconfigure(1, weight=1)
+    # Shopping cart variables
+    cart_items = {}  # product_name: quantity
+    cart_var = tk.StringVar()
+    cart_var.set("Cart: 0 items - £0.00")
+    
+    # Store filtered rows for easy access
+    filtered_rows = rows.copy()
+    
+    # Calculate initial ranges for filters
+    valid_prices = [r['price'] for r in rows if r['price'] is not None]
+    valid_price_per_g = [r.get('price_per_gram') for r in rows if r.get('price_per_gram') is not None]
+    valid_thc = [r.get('thc_percent') for r in rows if r.get('thc_percent') is not None]
+    
+    if valid_prices:
+        price_min.set(min(valid_prices))
+        price_max.set(max(valid_prices))
+    if valid_price_per_g:
+        price_per_g_min.set(min(valid_price_per_g))
+        price_per_g_max.set(max(valid_price_per_g))
+    if valid_thc:
+        thc_min.set(min(valid_thc))
+        thc_max.set(max(valid_thc))
+    
+    # Create main frame with paned window for resizable sections
+    main_paned = ttk.PanedWindow(root, orient=tk.HORIZONTAL)
+    main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    
+    # Left panel for filters and cart
+    left_panel = ttk.Frame(main_paned, padding="5")
+    main_paned.add(left_panel, weight=1)
+    
+    # Right panel for product table
+    right_panel = ttk.Frame(main_paned, padding="5")
+    main_paned.add(right_panel, weight=3)
+    
+    # === LEFT PANEL: FILTERS AND CART ===
+    
+    # Filters section
+    filters_frame = ttk.LabelFrame(left_panel, text="Filters", padding="10")
+    filters_frame.pack(fill=tk.X, pady=(0, 10))
+    
+    def create_range_filter(parent, title, min_var, max_var, min_val, max_val, format_func=lambda x: f"{x:.2f}"):
+        """Create a range filter with two sliders"""
+        frame = ttk.LabelFrame(parent, text=title, padding="5")
+        frame.pack(fill=tk.X, pady=5)
+        
+        # Min slider
+        ttk.Label(frame, text="Min:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        min_label = ttk.Label(frame, text=format_func(min_val))
+        min_label.grid(row=0, column=2, sticky=tk.E)
+        min_scale = ttk.Scale(frame, from_=min_val, to=max_val, variable=min_var, orient=tk.HORIZONTAL)
+        min_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        frame.columnconfigure(1, weight=1)
+        
+        # Max slider
+        ttk.Label(frame, text="Max:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        max_label = ttk.Label(frame, text=format_func(max_val))
+        max_label.grid(row=1, column=2, sticky=tk.E)
+        max_scale = ttk.Scale(frame, from_=min_val, to=max_val, variable=max_var, orient=tk.HORIZONTAL)
+        max_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=5)
+        
+        # Update labels when sliders change
+        def update_min_label(*args):
+            min_label.config(text=format_func(min_var.get()))
+        def update_max_label(*args):
+            max_label.config(text=format_func(max_var.get()))
+            
+        min_var.trace('w', update_min_label)
+        max_var.trace('w', update_max_label)
+        min_var.trace('w', lambda *args: apply_filters())
+        max_var.trace('w', lambda *args: apply_filters())
+        
+        return frame
+    
+    # Create filter controls
+    if valid_prices:
+        create_range_filter(filters_frame, "Price Range", price_min, price_max, 
+                          min(valid_prices), max(valid_prices), lambda x: f"£{x:.2f}")
+    
+    if valid_price_per_g:
+        create_range_filter(filters_frame, "Price per Gram", price_per_g_min, price_per_g_max,
+                          min(valid_price_per_g), max(valid_price_per_g), lambda x: f"£{x:.2f}/g")
+    
+    if valid_thc:
+        create_range_filter(filters_frame, "THC Content", thc_min, thc_max,
+                          min(valid_thc), max(valid_thc), lambda x: f"{x:.1f}%")
+    
+    # Reset filters button
+    def reset_filters():
+        if valid_prices:
+            price_min.set(min(valid_prices))
+            price_max.set(max(valid_prices))
+        if valid_price_per_g:
+            price_per_g_min.set(min(valid_price_per_g))
+            price_per_g_max.set(max(valid_price_per_g))
+        if valid_thc:
+            thc_min.set(min(valid_thc))
+            thc_max.set(max(valid_thc))
+        apply_filters()
+    
+    ttk.Button(filters_frame, text="Reset Filters", command=reset_filters).pack(pady=5)
+    
+    # Cart section
+    cart_frame = ttk.LabelFrame(left_panel, text="Shopping Cart", padding="10")
+    cart_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+    
+    # Cart summary
+    cart_summary = ttk.Label(cart_frame, textvariable=cart_var, font=('Arial', 12, 'bold'))
+    cart_summary.pack(pady=(0, 10))
+    
+    # Cart items listbox with scrollbar
+    cart_list_frame = ttk.Frame(cart_frame)
+    cart_list_frame.pack(fill=tk.BOTH, expand=True)
+    
+    cart_listbox = tk.Listbox(cart_list_frame, height=15)
+    cart_scrollbar = ttk.Scrollbar(cart_list_frame, orient=tk.VERTICAL, command=cart_listbox.yview)
+    cart_listbox.configure(yscrollcommand=cart_scrollbar.set)
+    
+    cart_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    cart_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    # Cart buttons
+    cart_buttons_frame = ttk.Frame(cart_frame)
+    cart_buttons_frame.pack(fill=tk.X, pady=(10, 0))
+    
+    def remove_from_cart():
+        selection = cart_listbox.curselection()
+        if selection:
+            idx = selection[0]
+            items = list(cart_items.keys())
+            if idx < len(items):
+                product_name = items[idx]
+                del cart_items[product_name]
+                update_cart_display()
+                refresh_table()
+    
+    def clear_cart():
+        cart_items.clear()
+        update_cart_display()
+        refresh_table()
+    
+    ttk.Button(cart_buttons_frame, text="Remove Selected", command=remove_from_cart).pack(side=tk.LEFT, padx=(0, 5))
+    ttk.Button(cart_buttons_frame, text="Clear Cart", command=clear_cart).pack(side=tk.LEFT)
+    
+    # === RIGHT PANEL: PRODUCT TABLE ===
     
     # Title label
-    title_label = ttk.Label(
-        main_frame, 
-        text="🌿 Mamedica Flower Products (Sorted by Price: Lowest to Highest)",
-        font=('Arial', 14, 'bold')
-    )
-    title_label.grid(row=0, column=0, pady=(0, 10), sticky=tk.W)
+    title_label = ttk.Label(right_panel, text="Mamedica Flower Products", font=('Arial', 14, 'bold'))
+    title_label.pack(pady=(0, 10))
     
     # Create treeview with scrollbars
-    tree_frame = ttk.Frame(main_frame)
-    tree_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+    tree_frame = ttk.Frame(right_panel)
+    tree_frame.pack(fill=tk.BOTH, expand=True)
     tree_frame.columnconfigure(0, weight=1)
     tree_frame.rowconfigure(0, weight=1)
     
     # Define columns
-    columns = ('rank', 'product', 'price', 'thc', 'cbd', 'size', 'price_per_g', 'price_per_mg_thc', 'brand')
+    columns = ('select', 'rank', 'product', 'price', 'thc', 'cbd', 'size', 'price_per_g', 'price_per_mg_thc', 'brand')
     tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=25)
     
     # Define headings
+    tree.heading('select', text='Add', anchor=tk.CENTER)
     tree.heading('rank', text='#', anchor=tk.CENTER)
     tree.heading('product', text='Product Name', anchor=tk.W)
     tree.heading('price', text='Price (£)', anchor=tk.E)
@@ -443,16 +584,17 @@ def show_gui_table(rows: List[Dict]):
     tree.heading('price_per_mg_thc', text='£/mg THC', anchor=tk.E)
     tree.heading('brand', text='Brand', anchor=tk.W)
     
-    # Configure column widths
-    tree.column('rank', width=35, minwidth=35, anchor=tk.CENTER)
-    tree.column('product', width=300, minwidth=250, anchor=tk.W)
-    tree.column('price', width=70, minwidth=70, anchor=tk.E)
-    tree.column('thc', width=50, minwidth=50, anchor=tk.CENTER)
-    tree.column('cbd', width=50, minwidth=50, anchor=tk.CENTER)
-    tree.column('size', width=50, minwidth=50, anchor=tk.CENTER)
-    tree.column('price_per_g', width=60, minwidth=60, anchor=tk.E)
-    tree.column('price_per_mg_thc', width=80, minwidth=80, anchor=tk.E)
-    tree.column('brand', width=120, minwidth=100, anchor=tk.W)
+    # Configure column widths - optimized for better product name display
+    tree.column('select', width=40, minwidth=40, anchor=tk.CENTER)
+    tree.column('rank', width=30, minwidth=30, anchor=tk.CENTER)
+    tree.column('product', width=320, minwidth=250, anchor=tk.W)  # Increased from 250 to 320
+    tree.column('price', width=60, minwidth=60, anchor=tk.E)     # Decreased from 70 to 60
+    tree.column('thc', width=45, minwidth=40, anchor=tk.CENTER) # Decreased from 50 to 45
+    tree.column('cbd', width=45, minwidth=40, anchor=tk.CENTER) # Decreased from 50 to 45
+    tree.column('size', width=40, minwidth=40, anchor=tk.CENTER)# Decreased from 50 to 40
+    tree.column('price_per_g', width=55, minwidth=50, anchor=tk.E) # Decreased from 60 to 55
+    tree.column('price_per_mg_thc', width=70, minwidth=65, anchor=tk.E) # Decreased from 80 to 70
+    tree.column('brand', width=90, minwidth=70, anchor=tk.W)     # Decreased from 100 to 90
     
     # Add scrollbars
     v_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
@@ -464,91 +606,155 @@ def show_gui_table(rows: List[Dict]):
     v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
     h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
     
-    # Populate the tree
-    for i, product in enumerate(rows, 1):
-        product_name = product['product']
+    # Handle tree clicks for adding to cart
+    def on_tree_click(event):
+        region = tree.identify_region(event.x, event.y)
+        if region == "cell":
+            column = tree.identify_column(event.x)
+            if column == '#1':  # Select column
+                item = tree.identify_row(event.y)
+                if item:
+                    values = tree.item(item, 'values')
+                    if values and len(values) > 2:  # Make sure we have product data
+                        product_name = values[2]  # Product name is in column 2
+                        add_to_cart(product_name)
+    
+    tree.bind("<Button-1>", on_tree_click)
+    
+    def add_to_cart(product_name):
+        """Add a product to the cart or increment quantity"""
+        if product_name in cart_items:
+            cart_items[product_name] += 1
+        else:
+            cart_items[product_name] = 1
+        update_cart_display()
+        refresh_table()
+    
+    def update_cart_display():
+        """Update the cart listbox and summary"""
+        cart_listbox.delete(0, tk.END)
+        total_cost = 0
+        total_items = 0
         
-        # Get pre-calculated values
-        thc_percent = product.get('thc_percent')
-        cbd_percent = product.get('cbd_percent')
-        weight_grams = product.get('weight_grams')
-        price_per_gram = product.get('price_per_gram')
-        price_per_mg_thc = product.get('price_per_mg_thc')
+        for product_name, quantity in cart_items.items():
+            # Find the product in our data to get the price
+            product_data = next((r for r in rows if r['product'] == product_name), None)
+            if product_data and product_data['price'] is not None:
+                item_cost = product_data['price'] * quantity
+                total_cost += item_cost
+                total_items += quantity
+                
+                # Truncate long product names for display
+                display_name = product_name[:40] + "..." if len(product_name) > 40 else product_name
+                cart_listbox.insert(tk.END, f"{quantity}x {display_name} - £{item_cost:.2f}")
+            else:
+                total_items += quantity
+                display_name = product_name[:40] + "..." if len(product_name) > 40 else product_name
+                cart_listbox.insert(tk.END, f"{quantity}x {display_name} - Price N/A")
         
-        # Format values
-        thc_str = f"{thc_percent:.1f}%" if thc_percent is not None else "N/A"
-        cbd_str = f"{cbd_percent:.1f}%" if cbd_percent is not None else "<1%"
-        size_str = f"{weight_grams:.0f}g" if weight_grams is not None else "N/A"
+        cart_var.set(f"Cart: {total_items} items - £{total_cost:.2f}")
+    
+    def apply_filters():
+        """Apply current filter settings to the product list"""
+        nonlocal filtered_rows
+        filtered_rows = []
         
-        # Extract brand (first word/words before THC percentage)
-        brand_match = re.search(r'^([^0-9]+?)(?=\s+\d+%)', product_name)
-        brand_str = brand_match.group(1).strip() if brand_match else "Unknown"
+        for product in rows:
+            # Price filter
+            if valid_prices and product['price'] is not None:
+                if not (price_min.get() <= product['price'] <= price_max.get()):
+                    continue
+            
+            # Price per gram filter
+            if valid_price_per_g and product.get('price_per_gram') is not None:
+                if not (price_per_g_min.get() <= product['price_per_gram'] <= price_per_g_max.get()):
+                    continue
+            
+            # THC filter
+            if valid_thc and product.get('thc_percent') is not None:
+                if not (thc_min.get() <= product['thc_percent'] <= thc_max.get()):
+                    continue
+            
+            filtered_rows.append(product)
         
-        price_str = f"{product['price']:.2f}" if product['price'] is not None else "N/A"
-        price_per_g_str = f"{price_per_gram:.2f}" if price_per_gram is not None else "N/A"
-        price_per_mg_thc_str = f"{price_per_mg_thc:.4f}" if price_per_mg_thc is not None else "N/A"
+        refresh_table()
+    
+    def refresh_table():
+        """Refresh the table with filtered data"""
+        # Clear existing items
+        for item in tree.get_children():
+            tree.delete(item)
         
-        # Insert row with alternating colors
-        tag = 'evenrow' if i % 2 == 0 else 'oddrow'
-        tree.insert('', tk.END, values=(
-            i, product_name, price_str, thc_str, cbd_str, size_str, 
-            price_per_g_str, price_per_mg_thc_str, brand_str
-        ), tags=(tag,))
+        # Populate with filtered data
+        for i, product in enumerate(filtered_rows, 1):
+            product_name = product['product']
+            
+            # Clean up product name for display
+            display_product_name = product_name
+            # Remove "less than" (any case)
+            display_product_name = re.sub(r'\bless\s+than\b', '', display_product_name, flags=re.IGNORECASE)
+            # Remove "Flower" from "CBD Flower" (any case)
+            display_product_name = re.sub(r'\bCBD\s+Flower\b', 'CBD', display_product_name, flags=re.IGNORECASE)
+            # Clean up extra spaces
+            display_product_name = re.sub(r'\s+', ' ', display_product_name).strip()
+            
+            # Check if item is in cart
+            in_cart = product_name in cart_items
+            cart_indicator = "Y" if in_cart else "+"
+            
+            # Get pre-calculated values
+            thc_percent = product.get('thc_percent')
+            cbd_percent = product.get('cbd_percent')
+            weight_grams = product.get('weight_grams')
+            price_per_gram = product.get('price_per_gram')
+            price_per_mg_thc = product.get('price_per_mg_thc')
+            
+            # Format values
+            thc_str = f"{thc_percent:.1f}%" if thc_percent is not None else "N/A"
+            cbd_str = f"{cbd_percent:.1f}%" if cbd_percent is not None else "<1%"
+            size_str = f"{weight_grams:.0f}g" if weight_grams is not None else "N/A"
+            
+            # Extract brand (first word/words before THC percentage)
+            brand_match = re.search(r'^([^0-9]+?)(?=\s+\d+%)', product_name)
+            brand_str = brand_match.group(1).strip() if brand_match else "Unknown"
+            
+            price_str = f"{product['price']:.2f}" if product['price'] is not None else "N/A"
+            price_per_g_str = f"{price_per_gram:.2f}" if price_per_gram is not None else "N/A"
+            price_per_mg_thc_str = f"{price_per_mg_thc:.4f}" if price_per_mg_thc is not None else "N/A"
+            
+            # Insert row with alternating colors
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+            if in_cart:
+                tag = 'in_cart'
+            
+            tree.insert('', tk.END, values=(
+                cart_indicator, i, display_product_name, price_str, thc_str, cbd_str, size_str,
+                price_per_g_str, price_per_mg_thc_str, brand_str
+            ), tags=(tag,))
+        
+        # Update title with count
+        filtered_count = len(filtered_rows)
+        total_count = len(rows)
+        title_label.config(text=f"Mamedica Flower Products (Showing {filtered_count} of {total_count})")
     
     # Configure row colors
     tree.tag_configure('oddrow', background='#f9f9f9')
     tree.tag_configure('evenrow', background='#ffffff')
+    tree.tag_configure('in_cart', background='#e8f5e8', foreground='#2d5a2d')
     
-    # Add summary label with efficiency metrics
-    summary_frame = ttk.Frame(main_frame)
-    summary_frame.grid(row=2, column=0, pady=(10, 0), sticky=tk.W)
+    # Initial table population
+    apply_filters()
     
-    total_products = len(rows)
-    price_range = ""
-    if rows and rows[0]['price'] is not None:
-        lowest_price = rows[0]['price']
-        highest_price = max(r['price'] for r in rows if r['price'] is not None)
-        price_range = f" | Price range: £{lowest_price:.2f} - £{highest_price:.2f}"
+    # Add summary label at bottom
+    summary_frame = ttk.Frame(right_panel)
+    summary_frame.pack(fill=tk.X, pady=(10, 0))
     
-    summary_label = ttk.Label(
+    instructions_label = ttk.Label(
         summary_frame,
-        text=f"Total flower products: {total_products}{price_range}",
-        font=('Arial', 10, 'bold')
+        text="Click the '+' or 'Y' in the first column to add items to your cart",
+        font=('Arial', 9, 'italic')
     )
-    summary_label.pack(side=tk.LEFT)
-    
-    # Add efficiency insights
-    insights_frame = ttk.Frame(main_frame)
-    insights_frame.grid(row=3, column=0, pady=(5, 0), sticky=tk.W)
-    
-    # Best value per gram
-    valid_per_gram = [r for r in rows if r.get('price_per_gram') is not None]
-    if valid_per_gram:
-        cheapest_per_gram = min(valid_per_gram, key=lambda x: x['price_per_gram'])
-        best_gram_label = ttk.Label(
-            insights_frame,
-            text=f"💰 Best £/g: {cheapest_per_gram['product'][:40]}... (£{cheapest_per_gram['price_per_gram']:.2f}/g)",
-            font=('Arial', 9)
-        )
-        best_gram_label.pack(anchor=tk.W)
-    
-    # Best value per mg THC
-    valid_per_thc = [r for r in rows if r.get('price_per_mg_thc') is not None]
-    if valid_per_thc:
-        cheapest_per_thc = min(valid_per_thc, key=lambda x: x['price_per_mg_thc'])
-        best_thc_label = ttk.Label(
-            insights_frame,
-            text=f"🌿 Best THC value: {cheapest_per_thc['product'][:40]}... (£{cheapest_per_thc['price_per_mg_thc']:.4f}/mg THC)",
-            font=('Arial', 9)
-        )
-        best_thc_label.pack(anchor=tk.W)
-    
-    # Add close button
-    button_frame = ttk.Frame(main_frame)
-    button_frame.grid(row=4, column=0, pady=(10, 0))
-    
-    close_button = ttk.Button(button_frame, text="Close", command=root.destroy)
-    close_button.pack()
+    instructions_label.pack(anchor=tk.W)
     
     # Center the window
     root.update_idletasks()
@@ -558,7 +764,7 @@ def show_gui_table(rows: List[Dict]):
     
     # Start the GUI
     root.mainloop()
-
+    
 def ask_for_display_preference():
     """Ask user if they want to display a nice rendered table"""
     if not RICH_AVAILABLE:
@@ -630,24 +836,24 @@ def main(argv=None):
         
         if not rows:
             if flower_only:
-                print("⚠️  No flower products found. Try using --all-products to see all items.")
+                print("âš ï¸  No flower products found. Try using --all-products to see all items.")
             else:
-                print("⚠️  No products found. Possible reasons:")
+                print("âš ï¸  No products found. Possible reasons:")
                 print("  - The form requires JavaScript to show conditional fields")
                 print("  - Additional form validation is needed")
                 print("  - The target select field names have changed")
-            print("\n🔍 Trying to parse all Gravity Forms selects with --all-selects...")
+            print("\nðŸ” Trying to parse all Gravity Forms selects with --all-selects...")
             
             # Try with all selects as fallback
             fallback_rows = extract_products(html, all_gf_selects=True)
             if fallback_rows:
                 rows = filter_and_sort_products(fallback_rows, flower_only=flower_only, sort_by_price=True)
                 if rows:
-                    print(f"✅ Found {len(rows)} products using --all-selects mode")
+                    print(f"âœ… Found {len(rows)} products using --all-selects mode")
                 else:
-                    print("❌ No matching products found even with --all-selects.")
+                    print("âŒ No matching products found even with --all-selects.")
             else:
-                print("❌ Still no products found. The form may require browser interaction.")
+                print("âŒ Still no products found. The form may require browser interaction.")
             
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -655,7 +861,7 @@ def main(argv=None):
 
     # Only proceed if we have data
     if not rows:
-        print("\n❌ No data to display. Try running with --all-products or --all-selects flags.")
+        print("\nâŒ No data to display. Try running with --all-products or --all-selects flags.")
         sys.exit(1)
 
     # Determine display method
@@ -675,10 +881,12 @@ def main(argv=None):
     # Export files
     if args.csv:
         write_csv(rows, args.csv)
-        print(f"📄 Wrote CSV: {args.csv}")
+        print(f"ðŸ“„ Wrote CSV: {args.csv}")
     if args.json:
         write_json(rows, args.json)
-        print(f"📄 Wrote JSON: {args.json}")
+        print(f"ðŸ“„ Wrote JSON: {args.json}")
 
 if __name__ == "__main__":
+    main()
+
     main()
